@@ -4,4 +4,5 @@ output "terraform_state" {
     endpoint = data.vault_kv_secret.terraform_state.data.b2_endpoint
   }
   description = "Terraform state storage information"
+  sensitive   = true
 }

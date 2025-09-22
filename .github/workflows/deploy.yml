@@ -13,8 +13,6 @@ jobs:
       id-token: write
     env:
       VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
-      SCW_DEFAULT_ORGANIZATION_ID: ${{ secrets.SCW_DEFAULT_ORGANIZATION_ID }}
-      SCW_DEFAULT_PROJECT_ID: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
 
     steps:
       - name: Set up Tailscale
@@ -53,13 +51,9 @@ jobs:
       - name: Get secrets from Vault
         id: vault-secrets
         run: |
-          scaleway_access_key=$(vault kv get -field=scaleway_access_key -mount=kv ente/bootstrap)
-          scaleway_secret_key=$(vault kv get -field=scaleway_secret_key -mount=kv ente/bootstrap)
           b2_application_key_id=$(vault kv get -field=b2_application_key_id -mount=kv ente/bootstrap)
           b2_application_key=$(vault kv get -field=b2_application_key -mount=kv ente/bootstrap)
 
-          echo "::add-mask::$scaleway_access_key"
-          echo "::add-mask::$scaleway_secret_key"
           echo "::add-mask::$b2_application_key_id"
           echo "::add-mask::$b2_application_key"
 
@@ -73,8 +67,6 @@ jobs:
           echo "::add-mask::$b2_state_bucket"
           echo "::add-mask::$b2_state_endpoint"
 
-          echo "SCW_ACCESS_KEY=$scaleway_access_key" >> $GITHUB_ENV
-          echo "SCW_SECRET_KEY=$scaleway_secret_key" >> $GITHUB_ENV
           echo "B2_APPLICATION_KEY_ID=$b2_application_key_id" >> $GITHUB_ENV
           echo "B2_APPLICATION_KEY=$b2_application_key" >> $GITHUB_ENV
 

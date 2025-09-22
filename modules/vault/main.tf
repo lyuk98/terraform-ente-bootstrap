@@ -2,7 +2,7 @@ terraform {
   required_providers {
     vault = {
       source  = "hashicorp/vault"
-      version = "~> 5.2"
+      version = "~> 5.3"
     }
   }
 }
@@ -21,39 +21,12 @@ resource "vault_kv_secret" "application_key_b2" {
   })
 }
 
-# API key for Scaleway (PostgreSQL)
-resource "vault_kv_secret" "api_key_scaleway_postgres_ente" {
-  path = "kv/ente/scaleway/terraform-scaleway-postgres-ente"
+# Application Key for accessing Terraform state
+resource "vault_kv_secret" "application_key_tfstate_ente" {
+  path = "kv/ente/b2/tfstate-ente"
   data_json = jsonencode({
-    access_key = var.scaleway_access_key
-    secret_key = var.scaleway_secret_key
-  })
-}
-
-# Application Key for accessing Terraform state (Museum)
-resource "vault_kv_secret" "application_key_tfstate_aws_museum" {
-  path = "kv/ente/b2/tfstate-aws-museum"
-  data_json = jsonencode({
-    application_key    = var.b2_application_key_tfstate_aws_museum
-    application_key_id = var.b2_application_key_id_tfstate_aws_museum
-  })
-}
-
-# Application Key for accessing Terraform state (PostgreSQL)
-resource "vault_kv_secret" "application_key_tfstate_scaleway_postgres_ente" {
-  path = "kv/ente/b2/tfstate-scaleway-postgres-ente"
-  data_json = jsonencode({
-    application_key    = var.b2_application_key_tfstate_scaleway_postgres_ente
-    application_key_id = var.b2_application_key_id_tfstate_scaleway_postgres_ente
-  })
-}
-
-# Application Key for accessing Terraform state (Backblaze B2)
-resource "vault_kv_secret" "application_key_tfstate_b2_ente" {
-  path = "kv/ente/b2/tfstate-b2-ente"
-  data_json = jsonencode({
-    application_key    = var.b2_application_key_tfstate_b2_ente
-    application_key_id = var.b2_application_key_id_tfstate_b2_ente
+    application_key    = var.b2_application_key_tfstate_ente
+    application_key_id = var.b2_application_key_id_tfstate_ente
   })
 }
 
@@ -78,6 +51,20 @@ data "vault_policy_document" "terraform_state" {
     capabilities = ["read"]
     description  = "Allow reading Terraform state information"
   }
+  rule {
+    path         = vault_kv_secret.application_key_tfstate_ente.path
+    capabilities = ["read"]
+    description  = "Allow reading B2 application key for writing Terraform state"
+  }
+}
+
+# Vault policy document (Vault policy)
+data "vault_policy_document" "acl" {
+  rule {
+    path         = "sys/policies/acl/museum"
+    capabilities = ["create", "read", "update", "delete"]
+    description  = "Allow creation of policy to access credentials for Museum"
+  }
 }
 
 # Vault policy document (Museum)
@@ -88,11 +75,6 @@ data "vault_policy_document" "aws_museum" {
     description  = "Allow reading configuration of AppRole authentication method"
   }
   rule {
-    path         = vault_kv_secret.application_key_tfstate_aws_museum.path
-    capabilities = ["read"]
-    description  = "Allow reading B2 application key for writing Terraform state (Museum)"
-  }
-  rule {
     path         = "kv/ente/aws/museum"
     capabilities = ["create", "read", "update", "delete"]
     description  = "Allow creation of credentials for Museum"
@@ -101,11 +83,6 @@ data "vault_policy_document" "aws_museum" {
     path         = "kv/ente/cloudflare/certificate"
     capabilities = ["read"]
     description  = "Allow reading certificate and certificate key"
-  }
-  rule {
-    path         = "sys/policies/acl/museum"
-    capabilities = ["create", "read", "update", "delete"]
-    description  = "Allow creation of policy to access Museum's credentials"
   }
   rule {
     path         = "auth/approle/role/museum"
@@ -119,30 +96,6 @@ data "vault_policy_document" "aws_museum" {
   }
 }
 
-# Vault policy document (PostgreSQL)
-data "vault_policy_document" "scaleway_postgres_ente" {
-  rule {
-    path         = vault_kv_secret.api_key_scaleway_postgres_ente.path
-    capabilities = ["read"]
-    description  = "Allow reading API key for Scaleway"
-  }
-  rule {
-    path         = vault_kv_secret.application_key_tfstate_scaleway_postgres_ente.path
-    capabilities = ["read"]
-    description  = "Allow reading B2 application key for writing Terraform state (PostgreSQL)"
-  }
-  rule {
-    path         = "kv/ente/scaleway/ente-scaleway-postgres"
-    capabilities = ["create", "read", "update", "delete"]
-    description  = "Allow creation of access credentials for PostgreSQL database"
-  }
-  rule {
-    path         = "sys/policies/acl/ente-scaleway-postgres"
-    capabilities = ["create", "read", "update", "delete"]
-    description  = "Allow creation of policy to access PostgreSQL access credentials"
-  }
-}
-
 # Vault policy document (Backblaze B2)
 data "vault_policy_document" "b2_ente" {
   rule {
@@ -151,87 +104,53 @@ data "vault_policy_document" "b2_ente" {
     description  = "Allow reading application key for Backblaze B2"
   }
   rule {
-    path         = vault_kv_secret.application_key_tfstate_b2_ente.path
-    capabilities = ["read"]
-    description  = "Allow reading B2 application key for writing Terraform state (Backblaze B2)"
-  }
-  rule {
     path         = "kv/ente/b2/ente-b2"
     capabilities = ["create", "read", "update", "delete"]
     description  = "Allow creation of access credentials for Backblaze B2"
   }
-  rule {
-    path         = "sys/policies/acl/ente-b2"
-    capabilities = ["create", "read", "update", "delete"]
-    description  = "Allow creation of policy to access B2 credentials"
-  }
 }
 
 # Policy to grant creation of child tokens
-resource "vault_policy" "policy_auth_token" {
+resource "vault_policy" "auth_token" {
   name   = "terraform-vault-auth-token-ente"
   policy = data.vault_policy_document.auth_token.hcl
 }
 
 # Policy to grant access to Terraform state information
-resource "vault_policy" "policy_terraform_state" {
+resource "vault_policy" "terraform_state" {
   name   = "terraform-state-ente"
   policy = data.vault_policy_document.terraform_state.hcl
 }
 
+# Policy to grant creation of a Vault role
+resource "vault_policy" "acl" {
+  name   = "terraform-vault-acl-ente"
+  policy = data.vault_policy_document.acl.hcl
+}
+
 # Policy to write (Museum)
-resource "vault_policy" "policy_aws_museum" {
+resource "vault_policy" "aws_museum" {
   name   = "terraform-aws-museum"
   policy = data.vault_policy_document.aws_museum.hcl
 }
 
-# Policy to write (PostgreSQL)
-resource "vault_policy" "policy_scaleway_postgres_ente" {
-  name   = "terraform-scaleway-postgres-ente"
-  policy = data.vault_policy_document.scaleway_postgres_ente.hcl
-}
-
 # Policy to write (Backblaze B2)
-resource "vault_policy" "policy_b2" {
+resource "vault_policy" "b2" {
   name   = "terraform-b2-ente"
   policy = data.vault_policy_document.b2_ente.hcl
 }
 
-# Vault role for Terraform configurations specific to Amazon Web Services
-resource "vault_aws_auth_backend_role" "role_aws_museum" {
+# Vault role for Terraform configurations
+resource "vault_aws_auth_backend_role" "ente" {
   backend   = data.vault_auth_backend.aws.path
-  role      = "terraform-aws-museum"
+  role      = "terraform-ente"
   auth_type = "iam"
   token_policies = [
-    vault_policy.policy_auth_token.name,
-    vault_policy.policy_terraform_state.name,
-    vault_policy.policy_aws_museum.name
+    vault_policy.auth_token.name,
+    vault_policy.terraform_state.name,
+    vault_policy.acl.name,
+    vault_policy.aws_museum.name,
+    vault_policy.b2.name
   ]
-  bound_iam_principal_arns = [var.aws_role_aws_museum_arn]
-}
-
-# Vault role for Terraform configurations specific to Scaleway
-resource "vault_aws_auth_backend_role" "role_scaleway_postgres_ente" {
-  backend   = data.vault_auth_backend.aws.path
-  role      = "terraform-scaleway-postgres-ente"
-  auth_type = "iam"
-  token_policies = [
-    vault_policy.policy_auth_token.name,
-    vault_policy.policy_terraform_state.name,
-    vault_policy.policy_scaleway_postgres_ente.name
-  ]
-  bound_iam_principal_arns = [var.aws_role_scaleway_postgres_ente_arn]
-}
-
-# Vault role for Terraform configurations specific to Backblaze B2
-resource "vault_aws_auth_backend_role" "role_b2_ente" {
-  backend   = data.vault_auth_backend.aws.path
-  role      = "terraform-b2-ente"
-  auth_type = "iam"
-  token_policies = [
-    vault_policy.policy_auth_token.name,
-    vault_policy.policy_terraform_state.name,
-    vault_policy.policy_b2.name
-  ]
-  bound_iam_principal_arns = [var.aws_role_b2_ente_arn]
+  bound_iam_principal_arns = [var.aws_role_arn]
 }

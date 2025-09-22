@@ -2,19 +2,15 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 6.11"
+      version = "~> 6.13"
     }
     b2 = {
       source  = "Backblaze/b2"
       version = "~> 0.10"
     }
-    scaleway = {
-      source  = "scaleway/scaleway"
-      version = "~> 2.59"
-    }
     vault = {
       source  = "hashicorp/vault"
-      version = "~> 5.2"
+      version = "~> 5.3"
     }
   }
 }
@@ -22,7 +18,5 @@ terraform {
 provider "aws" {}
 
 provider "b2" {}
-
-provider "scaleway" {}
 
 provider "vault" {}

@@ -39,26 +39,10 @@ data "b2_bucket" "terraform_state" {
   bucket_name = var.tfstate_bucket
 }
 
-# Key for accessing Terraform state (Museum)
-resource "b2_application_key" "terraform_state_aws_museum" {
+# Key for accessing Terraform state
+resource "b2_application_key" "terraform_state_ente" {
   capabilities = local.state_key_capabilities
-  key_name     = "terraform-state-aws-museum"
+  key_name     = "terraform-state-ente"
   bucket_id    = data.b2_bucket.terraform_state.bucket_id
-  name_prefix  = "terraform-aws-museum"
-}
-
-# Key for accessing Terraform state (PostgreSQL)
-resource "b2_application_key" "terraform_state_scaleway_postgres_ente" {
-  capabilities = local.state_key_capabilities
-  key_name     = "terraform-state-scaleway-postgres-ente"
-  bucket_id    = data.b2_bucket.terraform_state.bucket_id
-  name_prefix  = "terraform-scaleway-postgres-ente"
-}
-
-# Key for accessing Terraform state (Backblaze B2)
-resource "b2_application_key" "terraform_state_b2_ente" {
-  capabilities = local.state_key_capabilities
-  key_name     = "terraform-state-b2-ente"
-  bucket_id    = data.b2_bucket.terraform_state.bucket_id
-  name_prefix  = "terraform-b2-ente"
+  name_prefix  = "terraform-ente"
 }
